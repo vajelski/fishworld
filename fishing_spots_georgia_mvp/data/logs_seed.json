@@ -1,0 +1,46 @@
+[
+  {
+    "lat": 42.3506,
+    "lon": 44.689,
+    "date": "2026-02-01",
+    "durationMin": 120,
+    "caught": 1,
+    "catchCount": 1,
+    "species": "trout",
+    "method": "spinning",
+    "notes": "test log"
+  },
+  {
+    "lat": 42.3506,
+    "lon": 44.689,
+    "date": "2026-02-02",
+    "durationMin": 90,
+    "caught": 0,
+    "catchCount": 0,
+    "species": "trout",
+    "method": "spinning",
+    "notes": "no bite"
+  },
+  {
+    "lat": 41.6833,
+    "lon": 44.7333,
+    "date": "2026-02-03",
+    "durationMin": 180,
+    "caught": 1,
+    "catchCount": 2,
+    "species": "carp",
+    "method": "float",
+    "notes": "lisi"
+  },
+  {
+    "lat": 41.743,
+    "lon": 44.8407,
+    "date": "2026-02-04",
+    "durationMin": 60,
+    "caught": 0,
+    "catchCount": 0,
+    "species": "carp",
+    "method": "float",
+    "notes": "tbilisi sea"
+  }
+]

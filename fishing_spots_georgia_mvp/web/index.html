@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Fishing Spots • Georgia (MVP)</title>
+
+  <link rel="stylesheet" href="https://cdn.web-fonts.ge/fonts/bpg-mrgvlovani/css/bpg-mrgvlovani.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <style>
+    :root{
+      --bg:#051a2d;
+      --panel: rgba(10, 28, 45, 0.52);
+      --panel-2: rgba(10, 28, 45, 0.32);
+      --stroke: rgba(255,255,255,0.14);
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.70);
+      --gold: #d9b25f;
+      --shadow: 0 18px 50px rgba(0,0,0,0.45);
+      --radius: 18px;
+    }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; margin:0; background: radial-gradient(1200px 800px at 20% 10%, rgba(20,90,120,0.25), transparent 55%),
+                                      radial-gradient(900px 650px at 90% 20%, rgba(217,178,95,0.14), transparent 55%),
+                                      var(--bg);
+               color: var(--text);
+               font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .app{ height:100%; display:grid; grid-template-columns: 420px 1fr; gap: 18px; padding: 18px; }
+    @media (max-width: 980px){ .app{ grid-template-columns: 1fr; grid-template-rows: auto 1fr; } }
+    .panel{ background: var(--panel); border: 1px solid var(--stroke); border-radius: var(--radius); box-shadow: var(--shadow);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); overflow:hidden; }
+    .sidebar{ display:flex; flex-direction:column; min-height: 0; }
+    .topbar{ padding: 16px 16px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), transparent); }
+    .brand{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom: 10px; }
+    .brand h1{ margin:0; font-family: "BPG Mrgvlovani", sans-serif; letter-spacing: 0.3px; font-size: 18px; line-height: 1.2; }
+    .brand .sub{ margin-top:6px; font-size: 12.5px; color: var(--muted); }
+    .clock{ text-align:right; min-width: 140px; }
+    .clock .time{ font-family: "BPG Mrgvlovani", sans-serif; font-size: 16px; color: var(--gold); letter-spacing: 0.4px; }
+    .clock .date{ font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .controls{ padding: 12px 16px 16px; display:grid; gap: 10px; }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; }
+    input[type="search"]{ width:100%; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(0,0,0,0.20); color: var(--text); outline:none; }
+    input[type="search"]::placeholder{ color: rgba(255,255,255,0.55); }
+    .chip{ cursor:pointer; user-select:none; padding: 8px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(0,0,0,0.18); color: var(--muted); font-size: 12.5px; display:inline-flex; align-items:center; gap:8px;
+      transition: transform .12s ease, border-color .12s ease, color .12s ease, background .12s ease; }
+    .chip:hover{ transform: translateY(-1px); border-color: rgba(217,178,95,0.55); color: var(--text); }
+    .chip.active{ border-color: rgba(217,178,95,0.75); background: rgba(217,178,95,0.14); color: var(--text); }
+    .chip .dot{ width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 6px rgba(217,178,95,0.12); }
+    .list{ padding: 10px 10px 12px; overflow:auto; min-height: 0; }
+    .item{ padding: 12px 12px; margin: 10px 6px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.10);
+      background: var(--panel-2); transition: transform .12s ease, border-color .12s ease, background .12s ease; cursor:pointer; }
+    .item:hover{ transform: translateY(-1px); border-color: rgba(217,178,95,0.45); background: rgba(255,255,255,0.04); }
+    .title{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+    .title h3{ margin:0; font-size: 14.5px; font-weight: 650; letter-spacing:0.1px; }
+    .badge{ font-size: 11px; padding: 5px 8px; border-radius: 999px; border: 1px solid rgba(217,178,95,0.40);
+      background: rgba(217,178,95,0.12); color: rgba(255,255,255,0.88); white-space:nowrap; }
+    .meta{ margin-top: 8px; display:flex; flex-wrap:wrap; gap: 8px; color: var(--muted); font-size: 12px; }
+    .meta span{ border: 1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.18); padding: 5px 8px; border-radius: 12px; }
+    .details{ padding: 14px 16px 16px; border-top: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(217,178,95,0.05), transparent); }
+    .details h2{ margin:0 0 6px; font-family: "BPG Mrgvlovani", sans-serif; font-size: 15px; letter-spacing: 0.2px; }
+    .details .hint{ margin:0 0 12px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+    .kv{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .card{ padding: 10px 10px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.18); }
+    .card .k{ font-size: 11.5px; color: var(--muted); }
+    .card .v{ margin-top: 6px; font-size: 13.5px; color: var(--text); }
+    .actions{ display:flex; gap: 10px; flex-wrap:wrap; }
+    .btn{ cursor:pointer; border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.22); color: var(--text);
+      border-radius: 14px; padding: 10px 12px; font-weight: 650; font-size: 12.5px;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease; }
+    .btn:hover{ transform: translateY(-1px); border-color: rgba(217,178,95,0.55); background: rgba(217,178,95,0.10); }
+    .btn.primary{ border-color: rgba(217,178,95,0.75); background: rgba(217,178,95,0.14); }
+    #map{ height:100%; width:100%; border-radius: var(--radius); overflow:hidden; border: 1px solid rgba(255,255,255,0.10); box-shadow: var(--shadow); }
+    .leaflet-control-attribution{ background: rgba(0,0,0,0.35) !important; color: rgba(255,255,255,0.7) !important; border-radius: 12px; }
+    .leaflet-control-zoom a{ background: rgba(0,0,0,0.45) !important; color: white !important; border: 1px solid rgba(255,255,255,0.14) !important; }
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip{ background: rgba(6, 18, 30, 0.82) !important; color: rgba(255,255,255,0.92) !important;
+      border: 1px solid rgba(255,255,255,0.12) !important; backdrop-filter: blur(10px); }
+    .pulse-marker{ position: relative; width: 14px; height: 14px; border-radius: 50%; background: var(--gold);
+      box-shadow: 0 0 0 4px rgba(217,178,95,0.20); transform: translateZ(0); transition: transform .12s ease; }
+    .pulse-marker:hover{ transform: scale(1.12); }
+    .pulse-marker::after{ content:""; position:absolute; left:50%; top:50%; width: 14px; height: 14px; border-radius: 50%;
+      transform: translate(-50%,-50%); background: rgba(217,178,95,0.25); animation: pulse 1.8s ease-out infinite; }
+    @keyframes pulse{ 0%{ transform: translate(-50%,-50%) scale(1); opacity: .85; } 100%{ transform: translate(-50%,-50%) scale(3.2); opacity: 0; } }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="panel sidebar">
+      <div class="topbar">
+        <div class="brand">
+          <div>
+            <h1>მეთევზის რუკა • საქართველო</h1>
+            <div class="sub">MVP • API-driven spots • Open-Meteo weather</div>
+          </div>
+          <div class="clock">
+            <div class="time" id="clockTime">--:--</div>
+            <div class="date" id="clockDate">----</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <input id="q" type="search" placeholder="ძებნა: ლისი, ბაზალეთი, ენგური..." autocomplete="off"/>
+
+        <div class="row" id="filters">
+          <div class="chip active" data-filter="all"><span class="dot"></span>ყველა</div>
+          <div class="chip" data-filter="lake">ტბა</div>
+          <div class="chip" data-filter="river">მდინარე</div>
+          <div class="chip" data-filter="reservoir">წყალსაცავი</div>
+          <div class="chip" data-filter="free">უფასო</div>
+          <div class="chip" data-filter="paid">ფასიანი</div>
+        </div>
+      </div>
+
+      <div class="list" id="list"></div>
+
+      <div class="details" id="details">
+        <h2>აირჩიე ლოკაცია</h2>
+        <p class="hint">მარცხნივ დააჭირე ლოკაციას — რუკა „მიფრინავს“ (flyTo), გამოჩნდება ამინდი და დღევანდელი აქტივობის შეფასება.</p>
+
+        <div class="kv">
+          <div class="card"><div class="k">ამინდი</div><div class="v" id="wx">—</div></div>
+          <div class="card"><div class="k">აქტივობა</div><div class="v" id="activity">—</div></div>
+          <div class="card"><div class="k">ქარი</div><div class="v" id="wind">—</div></div>
+          <div class="card"><div class="k">წნევა (sea-level)</div><div class="v" id="pressure">—</div></div>
+        </div>
+
+        <div class="kv">
+          <div class="card"><div class="k">დღიური შანსი</div><div class="v" id="dailyChance">—</div></div>
+          <div class="card"><div class="k">ახლოს საათები</div><div class="v" id="hourlyHint">—</div></div>
+        </div>
+
+        <div class="card" style="margin-bottom:12px;">
+          <div class="k">საათობრივი შანსი (24ს)</div>
+          <div class="v" id="hourlyChances" style="margin-top:8px; font-size:12px; line-height:1.6; color:var(--muted);">—</div>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="routeBtn" disabled>🧭 Route (Google Maps)</button>
+          <button class="btn" id="copyBtn" disabled>📌 კოორდინატების კოპირება</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="map" class="panel"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // Change this if your API is hosted elsewhere
+    const API_BASE = "http://localhost:8000";
+
+    let SPOTS = [];
+    let activeFilter = "all";
+    let selectedSpot = null;
+
+    const FALLBACK_SPOTS = [
+      {"name":"ლისის ტბა (Lisi Lake)","lat":41.68333,"lon":44.73333,"note":"მიახლოებული ცენტრი","source":"latitude.to"},
+      {"name":"თბილისის ზღვა (Tbilisi Sea)","lat":41.74299,"lon":44.84066,"note":"წყალსაცავის ზონა","source":"latitude.to"},
+      {"name":"კუს ტბა (Turtle Lake)","lat":41.70016,"lon":44.75250,"note":"ტბის ცენტრი","source":"latitude.to"},
+      {"name":"ბაზალეთის ტბა (Bazaleti Lake)","lat":42.03890,"lon":44.67780,"note":"ტბის ცენტრი","source":"latitude.to"},
+      {"name":"ფარავნის ტბა (Paravani Lake)","lat":41.44609,"lon":43.80741,"note":"ტბის ცენტრი","source":"mapcarta"},
+      {"name":"კუმისის ტბა (Kumisi Lake)","lat":41.58470,"lon":44.84390,"note":"ტბის ცენტრი","source":"getamap.net"},
+      {"name":"ჯანდარის ტბა (Jandari Lake)","lat":41.43330,"lon":45.21670,"note":"ტბის ცენტრალური კოორდინატები","source":"keybiodiversityareas.org"},
+      {"name":"პალიასტომის ტბა (Lake Paliastomi)","lat":42.12500,"lon":41.72970,"note":"ტბის ცენტრი","source":"getamap.net"},
+      {"name":"ჟინვალის წყალსაცავი (Zhinvali Reservoir)","lat":42.13433,"lon":44.77000,"note":"დამბის ზონა","source":"latitude.to"},
+      {"name":"სიონის წყალსაცავი (Sioni Reservoir)","lat":42.00999,"lon":44.99863,"note":"წყალსაცავის ცენტრი","source":"mapcarta"},
+      {"name":"მდინარე რიონი (Rioni River)","lat":42.13245,"lon":42.39024,"note":"ქუთაისის მიდამოების სათევზაო spot","source":"fishangler.com"},
+      {"name":"ალაზანი (Alazani Spot)","lat":42.35031,"lon":45.65500,"note":"მდინარის სათევზაო წერტილი","source":"fishbrain.com"},
+      {"name":"პასანაური (არაგვი)","lat":42.35060,"lon":44.68900,"note":"ქალაქის ზონა მდინარესთან","source":"latitude.to"},
+      {"name":"ენგურის დამბა (Enguri Dam)","lat":42.75836,"lon":42.03090,"note":"დამბის ლოკაცია","source":"globalenergyobservatory.org"}
+    ].map((s, i) => ({
+      id: i + 1,
+      name: s.name,
+      lat: s.lat,
+      lon: s.lon,
+      type: inferType(s.name),
+      access: "free",
+      fish: [],
+      note: s.note,
+      score: 4.2,
+      source: s.source
+    }));
+
+    function inferType(name){
+      const n = String(name || "").toLowerCase();
+      if(n.includes("მდინარე") || n.includes("river")) return "river";
+      if(n.includes("წყალსაცავი") || n.includes("reservoir")) return "reservoir";
+      return "lake";
+    }
+
+    async function loadSpots(){
+      try{
+        const res = await fetch(`${API_BASE}/api/spots?top=200`);
+        if(!res.ok) throw new Error("Failed to load spots");
+        SPOTS = await res.json();
+      }catch(err){
+        console.warn("Using fallback spots", err);
+        SPOTS = FALLBACK_SPOTS;
+      }
+      applyFilters();
+      setTimeout(() => SPOTS[0] && selectSpot(SPOTS[0].id, false), 350);
+    }
+
+    const map = L.map('map', { zoomControl: true }).setView([42.1, 43.6], 7);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd',
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap &copy; CARTO'
+    }).addTo(map);
+
+    const markersById = new Map();
+
+    function pulseIcon(){
+      return L.divIcon({
+        className: "",
+        html: `<div class="pulse-marker" aria-label="spot marker"></div>`,
+        iconSize: [14,14],
+        iconAnchor: [7,7]
+      });
+    }
+
+    function addMarkers(spots){
+      markersById.forEach(m => map.removeLayer(m));
+      markersById.clear();
+
+      spots.forEach(s => {
+        const m = L.marker([s.lat, s.lon], { icon: pulseIcon() }).addTo(map);
+        m.bindPopup(`<b>${escapeHtml(s.name)}</b><br><span style="color:rgba(255,255,255,0.75)">${typeLabel(s.type)} • ${accessLabel(s.access)} • ⭐ ${Number(s.score||0).toFixed(2)}</span>`);
+        m.on('click', () => selectSpot(s.id, true));
+        markersById.set(s.id, m);
+      });
+    }
+
+    const listEl = document.getElementById('list');
+    const qEl = document.getElementById('q');
+    const filtersEl = document.getElementById('filters');
+    const routeBtn = document.getElementById('routeBtn');
+    const copyBtn = document.getElementById('copyBtn');
+
+    function renderList(spots){
+      listEl.innerHTML = "";
+      if(!spots.length){
+        listEl.innerHTML = `<div class="item" style="cursor:default; opacity:.85;">
+          <div class="title"><h3>ვერაფერი მოიძებნა</h3><span class="badge">Try: „ტბა“ / „მდინარე“</span></div>
+          <div class="meta"><span>შეცვალე ფილტრი ან ძებნა</span></div>
+        </div>`;
+        return;
+      }
+
+      spots.forEach(s => {
+        const el = document.createElement('div');
+        el.className = "item";
+        el.innerHTML = `
+          <div class="title">
+            <h3>${escapeHtml(s.name)}</h3>
+            <span class="badge">${typeLabel(s.type)} • ${accessLabel(s.access)} • ⭐ ${Number(s.score||0).toFixed(2)}</span>
+          </div>
+          <div class="meta">
+            <span>📍 ${s.lat.toFixed(4)}, ${s.lon.toFixed(4)}</span>
+            <span>🐟 ${(s.fish||[]).map(escapeHtml).join(", ")}</span>
+          </div>
+        `;
+        el.addEventListener('click', ()=> selectSpot(s.id, true));
+        listEl.appendChild(el);
+      });
+    }
+
+    function typeLabel(t){ return t === "lake" ? "ტბა" : t === "river" ? "მდინარე" : "წყალსაცავი"; }
+    function accessLabel(a){ return a === "free" ? "უფასო" : "ფასიანი"; }
+
+    function applyFilters(){
+      const q = (qEl.value || "").trim().toLowerCase();
+
+      const out = SPOTS.filter(s => {
+        const matchesQ =
+          !q ||
+          s.name.toLowerCase().includes(q) ||
+          (s.fish || []).some(f => String(f).toLowerCase().includes(q)) ||
+          (s.note || "").toLowerCase().includes(q);
+
+        let matchesFilter = true;
+        if(activeFilter === "lake" || activeFilter === "river" || activeFilter === "reservoir"){
+          matchesFilter = s.type === activeFilter;
+        } else if(activeFilter === "free" || activeFilter === "paid"){
+          matchesFilter = s.access === activeFilter;
+        }
+        return matchesQ && matchesFilter;
+      });
+
+      renderList(out);
+      addMarkers(out);
+    }
+
+    qEl.addEventListener('input', applyFilters);
+
+    filtersEl.addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip');
+      if(!chip) return;
+
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeFilter = chip.dataset.filter;
+      applyFilters();
+    });
+
+    async function selectSpot(id, openPopup){
+      const s = SPOTS.find(x => x.id === id);
+      if(!s) return;
+
+      selectedSpot = s;
+      map.flyTo([s.lat, s.lon], 12, { duration: 1.2 });
+
+      const m = markersById.get(id);
+      if(m && openPopup) m.openPopup();
+
+      routeBtn.disabled = false;
+      copyBtn.disabled = false;
+
+      document.querySelector('#details h2').textContent = s.name;
+      const explain = s.explain ? ` • explain: ${JSON.stringify(s.explain)}` : "";
+      document.querySelector('#details .hint').textContent =
+        `${typeLabel(s.type)} • ${accessLabel(s.access)} • ${s.note || "spot"} • 🐟 ${(s.fish||[]).join(", ")}${explain}`;
+
+      setWeatherUI("Loading…", "—", "—", "—");
+      try{
+        const wx = await fetchWeather(s.lat, s.lon);
+        const verdict = fishingActivityVerdict(wx);
+        setWeatherUI(
+          `${wx.tempC}°C • ${wx.summaryDisplay || wx.summary}`,
+          verdict.label,
+          `${wx.windKph} km/h`,
+          `${wx.pressureHpa} hPa`
+        );
+
+        const hourly = buildHourlyChances(wx);
+        renderChances(hourly);
+      }catch(err){
+        setWeatherUI("Weather unavailable", "—", "—", "—");
+        renderChances(null);
+      }
+    }
+
+    function setWeatherUI(wxText, activityText, windText, pressureText){
+      document.getElementById('wx').textContent = wxText;
+      document.getElementById('activity').textContent = activityText;
+      document.getElementById('wind').textContent = windText;
+      document.getElementById('pressure').textContent = pressureText;
+    }
+
+    async function fetchWeather(lat, lon){
+      try{
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 6000);
+        const url =
+          `https://api.open-meteo.com/v1/forecast` +
+          `?latitude=${encodeURIComponent(lat)}` +
+          `&longitude=${encodeURIComponent(lon)}` +
+          `&current=temperature_2m,wind_speed_10m,pressure_msl,weather_code` +
+          `&timezone=auto`;
+
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
+        if(!res.ok) throw new Error("wx fetch failed");
+        const data = await res.json();
+        const c = data.current;
+
+        const tempC = Math.round(c.temperature_2m);
+        const windKph = Math.round(c.wind_speed_10m);
+        const pressureHpa = Math.round(c.pressure_msl);
+        const summary = weatherCodeToText(c.weather_code);
+        const summaryDisplay = summaryToGeorgian(summary);
+
+        return { tempC, windKph, pressureHpa, summary, summaryDisplay };
+      }catch{
+        return mockWeather();
+      }
+    }
+
+    function weatherCodeToText(code){
+      const m = { 0:"Clear",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",48:"Rime fog",
+        51:"Drizzle",53:"Drizzle",55:"Drizzle",61:"Rain",63:"Rain",65:"Heavy rain",
+        71:"Snow",73:"Snow",75:"Heavy snow",80:"Showers",81:"Showers",82:"Violent showers",95:"Thunderstorm" };
+      return m[code] || "Mixed";
+    }
+
+    function summaryToGeorgian(summary){
+      const map = {
+        "Clear":"მოწმენდილი",
+        "Mainly clear":"მეტწილად მოწმენდილი",
+        "Partly cloudy":"ცოტა ღრუბლიანი",
+        "Overcast":"მოღრუბლული",
+        "Fog":"ნისლი",
+        "Rime fog":"ყინვიანი ნისლი",
+        "Drizzle":"წვიმის ბურუსი",
+        "Rain":"წვიმა",
+        "Heavy rain":"ძლიერი წვიმა",
+        "Snow":"თოვლი",
+        "Heavy snow":"ძლიერი თოვლი",
+        "Showers":"წვიმის შხეფები",
+        "Violent showers":"ძლიერი ნიაღვარი",
+        "Thunderstorm":"ჭექა-ქუხილი",
+        "Mixed":"შერეული ამინდი"
+      };
+      return map[summary] || summary;
+    }
+
+    function mockWeather(){
+      const temps = [9, 12, 15, 18, 22];
+      const winds = [4, 9, 14, 22];
+      const pressures = [1006, 1012, 1018, 1024];
+      const summaries = ["Clear","Partly cloudy","Overcast","Drizzle","Rain"];
+      const tempC = temps[Math.floor(Math.random() * temps.length)];
+      const windKph = winds[Math.floor(Math.random() * winds.length)];
+      const pressureHpa = pressures[Math.floor(Math.random() * pressures.length)];
+      const summary = summaries[Math.floor(Math.random() * summaries.length)];
+      const summaryDisplay = summaryToGeorgian(summary);
+      return { tempC, windKph, pressureHpa, summary, summaryDisplay };
+    }
+
+    function fishingActivityVerdict(wx){
+      const p = wx.pressureHpa;
+      const w = wx.windKph;
+      let score = 60;
+
+      if(w <= 8) score += 10;
+      else if(w <= 18) score += 0;
+      else if(w <= 28) score -= 12;
+      else score -= 22;
+
+      if(p >= 1010 && p <= 1022) score += 12;
+      else if(p >= 1002 && p <= 1030) score += 4;
+      else score -= 10;
+
+      if(["Thunderstorm","Violent showers","Heavy rain"].includes(wx.summary)) score -= 18;
+      if(["Fog","Rime fog"].includes(wx.summary)) score -= 6;
+
+      score = Math.max(0, Math.min(100, score));
+      if(score >= 75) return { label: "დღეს აქტივობა მაღალია ✅", score };
+      if(score >= 55) return { label: "საშუალო აქტივობა ⚖️", score };
+      return { label: "დაბალი აქტივობა ⚠️", score };
+    }
+
+    function buildHourlyChances(wx){
+      if(!wx) return null;
+      const base = fishingActivityVerdict(wx).score;
+      const hours = [];
+      for(let h = 0; h < 24; h++){
+        const dayFactor = hourFactor(h);
+        const score = clamp(base + dayFactor, 0, 100);
+        hours.push({ hour: h, score });
+      }
+      return hours;
+    }
+
+    function hourFactor(h){
+      // Dawn/dusk stronger, midday weaker. Simple heuristic.
+      if(h >= 5 && h <= 9) return 12;
+      if(h >= 18 && h <= 21) return 10;
+      if(h >= 10 && h <= 15) return -6;
+      if(h >= 0 && h <= 4) return -4;
+      return 0;
+    }
+
+    function renderChances(hourly){
+      const dailyEl = document.getElementById('dailyChance');
+      const hourlyEl = document.getElementById('hourlyChances');
+      const hourlyHint = document.getElementById('hourlyHint');
+      if(!hourly || !hourly.length){
+        dailyEl.textContent = "—";
+        hourlyEl.textContent = "—";
+        hourlyHint.textContent = "—";
+        return;
+      }
+
+      const avg = Math.round(hourly.reduce((a,b)=>a+b.score,0) / hourly.length);
+      dailyEl.textContent = `${avg}%`;
+
+      const nowH = new Date().getHours();
+      const next6 = hourly.filter(h => h.hour >= nowH && h.hour < nowH + 6);
+      const best = next6.sort((a,b)=>b.score-a.score)[0];
+      hourlyHint.textContent = best ? `${String(best.hour).padStart(2,"0")}:00 ≈ ${best.score}%` : "—";
+
+      const rows = hourly.map(h => `${String(h.hour).padStart(2,"0")}:00 — ${h.score}%`);
+      hourlyEl.textContent = rows.join(" • ");
+    }
+
+    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+    routeBtn.addEventListener('click', () => {
+      if(!selectedSpot) return;
+      const { lat, lon } = selectedSpot;
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      if(!selectedSpot) return;
+      const text = `${selectedSpot.lat.toFixed(6)}, ${selectedSpot.lon.toFixed(6)}`;
+      try{
+        await navigator.clipboard.writeText(text);
+        copyBtn.textContent = "✅ დაკოპირდა";
+        setTimeout(()=> copyBtn.textContent = "📌 კოორდინატების კოპირება", 1200);
+      }catch{ alert(text); }
+    });
+
+    function tickClock(){
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2,"0");
+      const mm = String(now.getMinutes()).padStart(2,"0");
+      const dd = String(now.getDate()).padStart(2,"0");
+      const mo = String(now.getMonth()+1).padStart(2,"0");
+      const yy = now.getFullYear();
+      document.getElementById('clockTime').textContent = `${hh}:${mm}`;
+      document.getElementById('clockDate').textContent = `${dd}.${mo}.${yy}`;
+    }
+    tickClock(); setInterval(tickClock, 1000);
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    loadSpots().catch(err => {
+      console.error(err);
+      listEl.innerHTML = `<div class="item" style="cursor:default; opacity:.85;">
+        <div class="title"><h3>API ვერ ჩაიტვირთა</h3><span class="badge">Check backend</span></div>
+        <div class="meta"><span>გაუშვი: uvicorn api.app:app --reload --port 8000</span></div>
+      </div>`;
+    });
+  </script>
+</body>
+</html>
